@@ -10,7 +10,6 @@ const NAV_ITEMS = [
   ]},
   { section: 'Cadastros', items: [
     { href: '/contacts',   icon: '◎', label: 'Contatos',   badge: '124' },
-    { href: '/companies',  icon: '▦', label: 'Empresas'               },
     { href: '/activities', icon: '▷', label: 'Atividades',  badge: '7'  },
   ]},
   { section: 'Análise', items: [
