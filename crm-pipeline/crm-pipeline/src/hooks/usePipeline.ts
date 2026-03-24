@@ -77,6 +77,35 @@ export function usePipeline(): UsePipelineReturn {
 
   useEffect(() => { load() }, [load])
 
+  // ---- Realtime Collaboration — sincroniza deals em tempo real ----
+  useEffect(() => {
+    if (!supabaseConfigured) return
+
+    const channel = supabase
+      .channel('deals-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'deals' },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setDeals((prev) => {
+              if (prev.find((d) => d.id === (payload.new as any).id)) return prev
+              return [...prev, payload.new as Deal]
+            })
+          } else if (payload.eventType === 'UPDATE') {
+            setDeals((prev) =>
+              prev.map((d) => (d.id === (payload.new as any).id ? { ...d, ...payload.new } : d))
+            )
+          } else if (payload.eventType === 'DELETE') {
+            setDeals((prev) => prev.filter((d) => d.id !== (payload.old as any).id))
+          }
+        }
+      )
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [])
+
   // Atualiza colunas sempre que stages/deals mudam
   useEffect(() => {
     setColumns(buildKanbanColumns(stages, deals))

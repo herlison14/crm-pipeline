@@ -61,7 +61,47 @@ async function getDashboardData() {
     lostReasons[r] = (lostReasons[r] || 0) + 1
   })
 
-  return { open, won, lost, pipelineValue, wonValue, avgTicket, avgCycle, convRate, funnel, maxCount, in7days, lostReasons }
+  // Revenue Intelligence — forecast ponderado por probabilidade
+  const now = Date.now()
+  const MS_30 = 30 * 86400000
+  const MS_60 = 60 * 86400000
+  const MS_90 = 90 * 86400000
+
+  function weightedValue(deals: any[]) {
+    return deals.reduce((s: number, d: any) => s + (d.value || 0) * ((d.probability || 50) / 100), 0)
+  }
+
+  const bucket30 = open.filter((d: any) => {
+    if (!d.expected_close_date) return false
+    const diff = new Date(d.expected_close_date).getTime() - now
+    return diff >= 0 && diff <= MS_30
+  })
+  const bucket60 = open.filter((d: any) => {
+    if (!d.expected_close_date) return false
+    const diff = new Date(d.expected_close_date).getTime() - now
+    return diff > MS_30 && diff <= MS_60
+  })
+  const bucket90 = open.filter((d: any) => {
+    if (!d.expected_close_date) return false
+    const diff = new Date(d.expected_close_date).getTime() - now
+    return diff > MS_60 && diff <= MS_90
+  })
+
+  const w30 = weightedValue(bucket30)
+  const w60 = weightedValue(bucket60)
+  const w90 = weightedValue(bucket90)
+
+  // Acumulado (30 inclui deals que fecham até 30 dias, 60 = até 60, etc.)
+  const forecast = {
+    d30: { weighted: w30, count: bucket30.length, pess: w30 * 0.7, opt: w30 * 1.3 },
+    d60: { weighted: w30 + w60, count: bucket30.length + bucket60.length, pess: (w30 + w60) * 0.7, opt: (w30 + w60) * 1.3 },
+    d90: { weighted: w30 + w60 + w90, count: bucket30.length + bucket60.length + bucket90.length, pess: (w30 + w60 + w90) * 0.7, opt: (w30 + w60 + w90) * 1.3 },
+  }
+
+  // Meta mensal estimada = média dos valores ganhos * 1.2 (meta de crescimento 20%)
+  const monthlyTarget = avgTicket > 0 ? avgTicket * (won.length || 1) * 1.2 : pipelineValue * 0.3
+
+  return { open, won, lost, pipelineValue, wonValue, avgTicket, avgCycle, convRate, funnel, maxCount, in7days, lostReasons, forecast, monthlyTarget, bucket30 }
 }
 
 function fmt(v: number) {
@@ -84,7 +124,7 @@ export default async function DashboardPage() {
     )
   }
 
-  const { open, won, lost, pipelineValue, wonValue, avgTicket, avgCycle, convRate, funnel, maxCount, in7days, lostReasons } = data
+  const { open, won, lost, pipelineValue, wonValue, avgTicket, avgCycle, convRate, funnel, maxCount, in7days, lostReasons, forecast, monthlyTarget, bucket30 } = data
 
   const kpis = [
     { label: 'Pipeline em aberto',   value: fmt(pipelineValue), sub: `${open.length} negócios`,        color: 'text-blue-700',    bg: 'bg-blue-50'    },
@@ -201,6 +241,101 @@ export default async function DashboardPage() {
             )}
           </div>
         </div>
+        {/* Revenue Intelligence */}
+        <div className="bg-white rounded-xl border border-gray-100 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-[14px] font-semibold text-gray-700 flex items-center gap-2">
+                <span>📈</span> Revenue Intelligence · Forecast Ponderado
+              </h2>
+              <p className="text-[11px] text-gray-400 mt-0.5">Baseado em probabilidade × valor dos negócios em aberto</p>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">Meta mensal est.</p>
+              <p className="text-[16px] font-bold text-emerald-700">{fmt(monthlyTarget)}</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4 mb-5">
+            {([
+              { label: 'Próximos 30 dias', key: 'd30', color: 'emerald' },
+              { label: 'Próximos 60 dias', key: 'd60', color: 'blue' },
+              { label: 'Próximos 90 dias', key: 'd90', color: 'violet' },
+            ] as const).map(({ label, key, color }) => {
+              const f = forecast[key]
+              const progressPct = Math.min(Math.round((f.weighted / monthlyTarget) * 100), 100)
+              const colorMap = {
+                emerald: { bar: 'bg-emerald-500', bg: 'bg-emerald-50', text: 'text-emerald-700', light: 'bg-emerald-100' },
+                blue:    { bar: 'bg-blue-500',    bg: 'bg-blue-50',    text: 'text-blue-700',    light: 'bg-blue-100'    },
+                violet:  { bar: 'bg-violet-500',  bg: 'bg-violet-50',  text: 'text-violet-700',  light: 'bg-violet-100'  },
+              }
+              const c = colorMap[color]
+              return (
+                <div key={key} className={`${c.bg} rounded-xl p-4`}>
+                  <p className="text-[11px] font-medium text-gray-500 mb-1">{label}</p>
+                  <p className={`text-[20px] font-bold ${c.text}`}>{fmt(f.weighted)}</p>
+                  <p className="text-[10px] text-gray-400 mb-3">{f.count} negócio{f.count !== 1 ? 's' : ''} no período</p>
+
+                  {/* Barra de progresso em relação à meta */}
+                  <div className="h-1.5 bg-white rounded-full overflow-hidden mb-1">
+                    <div className={`h-full ${c.bar} rounded-full transition-all`} style={{ width: `${progressPct}%` }} />
+                  </div>
+                  <p className="text-[10px] text-gray-400">{progressPct}% da meta</p>
+
+                  {/* Cenários pessimista / otimista */}
+                  <div className="flex gap-2 mt-3">
+                    <div className={`flex-1 rounded-lg px-2 py-1.5 ${c.light} text-center`}>
+                      <p className="text-[9px] text-gray-400 font-medium">Pessimista</p>
+                      <p className={`text-[11px] font-bold ${c.text}`}>{fmt(f.pess)}</p>
+                    </div>
+                    <div className={`flex-1 rounded-lg px-2 py-1.5 ${c.light} text-center`}>
+                      <p className="text-[9px] text-gray-400 font-medium">Otimista</p>
+                      <p className={`text-[11px] font-bold ${c.text}`}>{fmt(f.opt)}</p>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Deals de maior impacto no forecast 30d */}
+          {bucket30.length > 0 && (
+            <div>
+              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Maiores oportunidades · 30 dias</p>
+              <div className="space-y-1.5">
+                {[...bucket30]
+                  .sort((a: any, b: any) => ((b.value || 0) * (b.probability || 50)) - ((a.value || 0) * (a.probability || 50)))
+                  .slice(0, 4)
+                  .map((d: any) => {
+                    const weighted = (d.value || 0) * ((d.probability || 50) / 100)
+                    return (
+                      <div key={d.id} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[12px] font-medium text-gray-700 truncate">{d.title}</p>
+                          <p className="text-[10px] text-gray-400">
+                            Fecha: {new Date(d.expected_close_date + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+                            {d.owner_name ? ` · ${d.owner_name}` : ''}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-[12px] font-semibold text-gray-700">{fmt(d.value || 0)}</p>
+                          <p className="text-[10px] text-emerald-600 font-medium">≈ {fmt(weighted)} ponderado</p>
+                        </div>
+                        <div className="w-10 text-center shrink-0">
+                          <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full ${
+                            (d.probability || 50) >= 70 ? 'bg-emerald-100 text-emerald-700' :
+                            (d.probability || 50) >= 40 ? 'bg-amber-100 text-amber-700' :
+                            'bg-red-100 text-red-600'
+                          }`}>{d.probability || 50}%</span>
+                        </div>
+                      </div>
+                    )
+                  })}
+              </div>
+            </div>
+          )}
+        </div>
+
       </div>
     </div>
   )
