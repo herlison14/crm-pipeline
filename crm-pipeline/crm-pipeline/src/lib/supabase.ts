@@ -1,10 +1,20 @@
 // src/lib/supabase.ts
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl  = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+const supabaseUrl  = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-export const supabase = createClient(supabaseUrl, supabaseAnon)
+if (!supabaseUrl || !supabaseAnon) {
+  console.warn('[CRM] Variáveis NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY não configuradas.')
+}
+
+export const supabase = createClient(
+  supabaseUrl  ?? 'https://placeholder.supabase.co',
+  supabaseAnon ?? 'placeholder',
+)
+
+export const supabaseConfigured =
+  Boolean(supabaseUrl) && supabaseUrl !== 'https://placeholder.supabase.co'
 
 // ─────────────────────────────────────────────
 // src/lib/deals.ts  — funções de acesso a dados

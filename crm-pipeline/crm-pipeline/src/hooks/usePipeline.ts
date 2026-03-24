@@ -11,6 +11,7 @@ import {
   createDeal,
   updateDeal,
   deleteDeal,
+  supabaseConfigured,
 } from '@/lib/supabase'
 import type {
   Pipeline,
@@ -50,6 +51,11 @@ export function usePipeline(): UsePipelineReturn {
   const [error,    setError]    = useState<string | null>(null)
 
   const load = useCallback(async () => {
+    if (!supabaseConfigured) {
+      setError('Supabase não configurado. Adicione NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY nas variáveis de ambiente do Vercel.')
+      setLoading(false)
+      return
+    }
     try {
       setLoading(true)
       setError(null)
