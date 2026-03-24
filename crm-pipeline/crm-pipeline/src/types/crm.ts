@@ -1,6 +1,4 @@
 // src/types/crm.ts
-// Tipos centrais do CRM — gerados a partir do schema do Supabase
-
 export interface Pipeline {
   id: string
   name: string
@@ -47,6 +45,9 @@ export interface Deal {
   owner_color: string
   tags: string[]
   lost_reason: string | null
+  lead_source: string | null
+  next_action: string | null
+  next_action_date: string | null
   status: DealStatus
   position: number
   notes: string | null
@@ -86,6 +87,10 @@ export interface CreateDealPayload {
   owner_color?: string
   tags?: string[]
   contact_id?: string
+  lead_source?: string
+  next_action?: string
+  next_action_date?: string
+  notes?: string
 }
 
 export interface UpdateDealPayload {
@@ -96,6 +101,9 @@ export interface UpdateDealPayload {
   position?: number
   status?: DealStatus
   lost_reason?: string
+  lead_source?: string
+  next_action?: string
+  next_action_date?: string
   tags?: string[]
   notes?: string
 }
