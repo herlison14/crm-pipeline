@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import {
+  supabase,
   getDefaultPipeline,
   getStages,
   getDeals,
