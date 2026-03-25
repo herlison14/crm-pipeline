@@ -30,7 +30,7 @@ export function KanbanColumn({
   const dealIds = deals.map((d) => d.id)
 
   return (
-    <div className="flex flex-col w-[80vw] min-w-[80vw] sm:w-[220px] sm:min-w-[220px] sm:max-w-[220px]">
+    <div className="flex flex-col snap-start w-[calc(100vw-2rem)] min-w-[calc(100vw-2rem)] sm:w-[220px] sm:min-w-[220px] sm:max-w-[220px]">
       {/* Cabeçalho da coluna */}
       <div className="bg-white border border-gray-200 rounded-xl px-3 py-2.5 mb-2 flex items-center justify-between">
         <div className="flex items-center gap-2">

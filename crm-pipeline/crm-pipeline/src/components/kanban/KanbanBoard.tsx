@@ -1,7 +1,7 @@
 // src/components/kanban/KanbanBoard.tsx
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import {
   DndContext,
   DragEndEvent,
@@ -39,6 +39,8 @@ export function KanbanBoard() {
   const [modalOpen,     setModalOpen]     = useState(false)
   const [editingDeal,   setEditingDeal]   = useState<Deal | null>(null)
   const [targetStageId, setTargetStageId] = useState<string>('')
+  const [activeColIdx,  setActiveColIdx]  = useState(0)
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -132,6 +134,23 @@ export function KanbanBoard() {
     await removeDeal(dealId)
   }
 
+  // ── Carrossel mobile ────────────────────────────────────
+  function handleScroll() {
+    if (!scrollRef.current) return
+    const el = scrollRef.current
+    const colWidth = el.scrollWidth / columns.length
+    const idx = Math.round(el.scrollLeft / colWidth)
+    setActiveColIdx(Math.min(Math.max(idx, 0), columns.length - 1))
+  }
+
+  function scrollToCol(idx: number) {
+    if (!scrollRef.current || !columns.length) return
+    const el = scrollRef.current
+    const colWidth = el.scrollWidth / columns.length
+    el.scrollTo({ left: colWidth * idx, behavior: 'smooth' })
+    setActiveColIdx(idx)
+  }
+
   // ── KPIs do topo ────────────────────────────────────────
   const totalValue    = columns.reduce((s, c) => s + c.totalValue, 0)
   const totalDeals    = columns.reduce((s, c) => s + c.deals.length, 0)
@@ -197,7 +216,7 @@ export function KanbanBoard() {
       </div>
 
       {/* ── Kanban Board ── */}
-      <div className="flex-1 overflow-x-auto overflow-y-auto">
+      <div className="flex-1 flex flex-col overflow-hidden">
         <DndContext
           sensors={sensors}
           collisionDetection={closestCorners}
@@ -205,16 +224,27 @@ export function KanbanBoard() {
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
-          <div className="flex gap-3 p-4 md:p-6 min-h-full w-max">
-            {columns.map((column) => (
-              <KanbanColumn
-                key={column.stage.id}
-                column={column}
-                onAddDeal={openCreate}
-                onEditDeal={openEdit}
-                onDeleteDeal={handleDelete}
-              />
-            ))}
+          {/* Scroll container — snap no mobile, livre no desktop */}
+          <div
+            ref={scrollRef}
+            onScroll={handleScroll}
+            className="
+              flex-1 overflow-x-auto overflow-y-auto
+              snap-x snap-mandatory md:snap-none
+              scroll-smooth
+            "
+          >
+            <div className="flex gap-3 p-4 md:p-6 min-h-full w-max">
+              {columns.map((column) => (
+                <KanbanColumn
+                  key={column.stage.id}
+                  column={column}
+                  onAddDeal={openCreate}
+                  onEditDeal={openEdit}
+                  onDeleteDeal={handleDelete}
+                />
+              ))}
+            </div>
           </div>
 
           {/* Card fantasma durante o drag */}
@@ -224,6 +254,61 @@ export function KanbanBoard() {
             ) : null}
           </DragOverlay>
         </DndContext>
+
+        {/* ── Dots + Nav — só mobile ── */}
+        {columns.length > 0 && (
+          <div className="md:hidden flex items-center justify-center gap-3 py-3 bg-white border-t border-gray-100">
+            {/* Seta anterior */}
+            <button
+              onClick={() => scrollToCol(activeColIdx - 1)}
+              disabled={activeColIdx === 0}
+              className="p-1.5 rounded-lg text-gray-400 disabled:opacity-30 hover:text-gray-600 transition-colors"
+            >
+              ‹
+            </button>
+
+            {/* Label da etapa atual */}
+            <div className="flex items-center gap-2">
+              {columns.map((col, i) => (
+                <button
+                  key={col.stage.id}
+                  onClick={() => scrollToCol(i)}
+                  className={`transition-all duration-200 rounded-full ${
+                    i === activeColIdx
+                      ? 'w-5 h-2'
+                      : 'w-2 h-2 opacity-40 hover:opacity-70'
+                  }`}
+                  style={{
+                    backgroundColor: i === activeColIdx
+                      ? col.stage.color
+                      : '#94A3B8',
+                  }}
+                  title={col.stage.name}
+                />
+              ))}
+            </div>
+
+            {/* Seta próxima */}
+            <button
+              onClick={() => scrollToCol(activeColIdx + 1)}
+              disabled={activeColIdx === columns.length - 1}
+              className="p-1.5 rounded-lg text-gray-400 disabled:opacity-30 hover:text-gray-600 transition-colors"
+            >
+              ›
+            </button>
+
+            {/* Nome da etapa atual */}
+            <span
+              className="text-[11px] font-semibold ml-1"
+              style={{ color: columns[activeColIdx]?.stage.color }}
+            >
+              {columns[activeColIdx]?.stage.name}
+              <span className="text-gray-400 font-normal ml-1">
+                ({columns[activeColIdx]?.deals.length})
+              </span>
+            </span>
+          </div>
+        )}
       </div>
 
       {/* ── Modal ── */}
