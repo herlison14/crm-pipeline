@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useState } from 'react'
 
 const NAV_ITEMS = [
   { section: 'Principal', items: [
@@ -20,11 +21,12 @@ const NAV_ITEMS = [
 
 export function Sidebar() {
   const pathname = usePathname()
+  const [open, setOpen] = useState(false)
 
-  return (
-    <aside className="w-[220px] min-w-[220px] bg-white border-r border-gray-200 flex flex-col">
+  const navContent = (
+    <>
       {/* Logo */}
-      <div className="px-4 py-4 border-b border-gray-100">
+      <div className="px-4 py-4 border-b border-gray-100 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 bg-emerald-600 rounded-lg flex items-center justify-center">
             <span className="text-white text-[12px] font-bold">C</span>
@@ -34,6 +36,12 @@ export function Sidebar() {
             <p className="text-[10px] text-gray-400 mt-0.5">Gestão de Vendas</p>
           </div>
         </div>
+        <button
+          className="md:hidden p-1 text-gray-400 hover:text-gray-600"
+          onClick={() => setOpen(false)}
+        >
+          ✕
+        </button>
       </div>
 
       {/* Nav */}
@@ -56,6 +64,7 @@ export function Sidebar() {
                   label={item.label}
                   badge={'badge' in item ? (item as any).badge : undefined}
                   active={active}
+                  onClick={() => setOpen(false)}
                 />
               )
             })}
@@ -73,7 +82,41 @@ export function Sidebar() {
           <p className="text-[10px] text-gray-400">Administrador</p>
         </div>
       </div>
-    </aside>
+    </>
+  )
+
+  return (
+    <>
+      {/* Botão hamburger — só mobile */}
+      <button
+        className="md:hidden fixed top-3 left-3 z-50 p-2 bg-white rounded-lg shadow border border-gray-200"
+        onClick={() => setOpen(true)}
+        aria-label="Abrir menu"
+      >
+        <span className="text-[18px] leading-none text-gray-600">☰</span>
+      </button>
+
+      {/* Backdrop overlay — só mobile */}
+      {open && (
+        <div
+          className="md:hidden fixed inset-0 bg-black/40 z-40"
+          onClick={() => setOpen(false)}
+        />
+      )}
+
+      {/* Sidebar desktop: estática | mobile: drawer deslizante */}
+      <aside
+        className={`
+          flex flex-col bg-white border-r border-gray-200
+          w-[220px] min-w-[220px]
+          fixed top-0 left-0 h-full z-50 transition-transform duration-200
+          md:static md:translate-x-0 md:z-auto
+          ${open ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+        `}
+      >
+        {navContent}
+      </aside>
+    </>
   )
 }
 
@@ -83,16 +126,19 @@ function NavItem({
   label,
   badge,
   active,
+  onClick,
 }: {
-  href:    string
-  icon:    string
-  label:   string
-  badge?:  string
-  active?: boolean
+  href:     string
+  icon:     string
+  label:    string
+  badge?:   string
+  active?:  boolean
+  onClick?: () => void
 }) {
   return (
     <Link
       href={href}
+      onClick={onClick}
       className={`
         flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-colors
         ${active

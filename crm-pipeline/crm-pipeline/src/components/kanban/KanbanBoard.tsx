@@ -164,39 +164,40 @@ export function KanbanBoard() {
   return (
     <div className="flex flex-col h-full">
       {/* ── Topbar do pipeline ── */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-white">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-4 md:px-6 py-3 border-b border-gray-100 bg-white">
         <div>
-          <h1 className="text-[16px] font-semibold text-gray-900">
+          <h1 className="text-[15px] md:text-[16px] font-semibold text-gray-900">
             {pipeline?.name ?? 'Pipeline'}
           </h1>
-          <p className="text-[12px] text-gray-400 mt-0.5">
+          <p className="text-[11px] md:text-[12px] text-gray-400 mt-0.5">
             {totalDeals} negócios · {formatCurrency(totalValue)} em aberto
           </p>
         </div>
 
-        {/* KPI chips */}
-        <div className="flex items-center gap-3">
-          <div className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-center">
+        {/* KPI chips + botão */}
+        <div className="flex items-center gap-2">
+          <div className="hidden sm:block px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-center">
             <p className="text-[10px] font-medium">Ganhos</p>
             <p className="text-[13px] font-semibold">{formatCurrency(wonValue)}</p>
           </div>
-          <div className="px-3 py-1.5 rounded-lg bg-gray-50 text-gray-600 text-center">
+          <div className="hidden sm:block px-3 py-1.5 rounded-lg bg-gray-50 text-gray-600 text-center">
             <p className="text-[10px] font-medium">Negócios</p>
             <p className="text-[13px] font-semibold">{totalDeals}</p>
           </div>
 
           <button
             onClick={() => openCreate(stages[0]?.id ?? '')}
-            className="flex items-center gap-1.5 px-4 py-2 text-[13px] font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-colors"
+            className="flex items-center gap-1.5 px-3 md:px-4 py-2 text-[13px] font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-colors"
           >
             <span className="text-base leading-none">+</span>
-            Novo Negócio
+            <span className="hidden sm:inline">Novo Negócio</span>
+            <span className="sm:hidden">Novo</span>
           </button>
         </div>
       </div>
 
       {/* ── Kanban Board ── */}
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-x-auto overflow-y-auto">
         <DndContext
           sensors={sensors}
           collisionDetection={closestCorners}
@@ -204,7 +205,7 @@ export function KanbanBoard() {
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
-          <div className="flex gap-3 p-6 min-h-full w-fit">
+          <div className="flex gap-3 p-4 md:p-6 min-h-full w-max">
             {columns.map((column) => (
               <KanbanColumn
                 key={column.stage.id}
